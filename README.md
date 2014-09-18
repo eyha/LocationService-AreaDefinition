@@ -3,7 +3,7 @@ Area Definer
 
 Information
 -----------
-This API allows you to define an area (either a polygon, circle or point), which will be assigned as a specific 'area' which its companion service can use to determine your location.
+This API allows you to define an area (either a polygon, circle or point), which will be assigned as a specific 'location' which its companion service can use to determine where you are.
 
 ToDos:
 ------
