@@ -10,11 +10,11 @@ var shapes = [[]];
 var loc = 0;
 var points = [];
 var currentShape = [];
-var corners, lines;
+var corners;
+var line;
 var markers, polygons, circles;
 var currentSelected;
-var currentMarkerPosition;
-var currentLines = [];
+var currentMarkerPosition, currentMarker;
 
 //Initiates the map
 var initMap = function() 
@@ -39,7 +39,6 @@ var initMap = function()
 	
 	//defining the various groups
 	corners = L.featureGroup();
-	lines = L.layerGroup();
 	markers = L.layerGroup();
 	polygons = L.layerGroup();
 	circles = L.layerGroup();
@@ -50,7 +49,6 @@ var initMap = function()
 	map.setMaxBounds(bounds);
 	map.on('click', mapClick);
 	corners.addTo(map);
-	lines.addTo(map);
 	polygons.addTo(map);
 	markers.addTo(map);
 	circles.addTo(map);
@@ -75,16 +73,17 @@ var addPoint = function(location) {
 	currentShape.push(point);
 }
 
-var drawLine = function(point1, point2) {
-	var points = [point1, point2];
-	var line = new L.Polyline(points, 
+var drawLine = function() {
+	if(line !== undefined)
+		map.removeLayer(line);
+	line = new L.Polyline(currentShape, 
 	{
-		color: 'black',
-		weight: 2,
+		color: 'red',
+		weight: 3,
 		opacity: 0.5,
 		smoothfactor: 1
 	});
-	lines.addLayer(line);
+	line.addTo(map);
 }
 
 var drawCircle = function(point, origin) {
@@ -111,8 +110,8 @@ var mapClick = function(e) {
 	//In shape polygon defining mode.
 	case 2:
 		//Drawing a line between point selected and previous one
-		drawLine(e.latlng, points[points.length - 1]);
 		addPoint(e.latlng);
+		drawLine();
 		break;
 	case 3:
 		//Deselecting the current selected polygon
@@ -165,7 +164,7 @@ var cutPoint = function(e) {
 		});
 		shapes.push(currentShape);
 		currentShape = [];
-		lines.clearLayers();
+		map.removeLayer(line);
 		polygon.on('click', selectPolygon);
 		polygon.addTo(polygons);
 		currentSelected = polygon._leaflet_id;
@@ -261,6 +260,17 @@ var recordPosition = function(element) {
 	switch(mouseState)
 	{
 	case 2:
+		var m;
+		var marks = corners.getLayers();
+		for(m = 0; m < marks.length; m++)
+		{
+			if(marks[m].getLatLng() == element.target.getLatLng())
+			{
+				currentMarker = m;
+				break;
+			}
+		}
+		break;
 	case 3:
 		currentMarkerPosition = element.target.getLatLng();
 		break;
@@ -275,20 +285,12 @@ var setPosition = function(element) {
 	//Drawing lines mode
 	case 2:
 		//Get lines attached to that point
-		var l, p, ends;
-		for(l in lines._layers)
-		{
-			ends = lines._layers[l].getLatLngs();
-			for(p = 0; p < ends.length; p++)
-			{
-				if(ends[p] == currentMarkerPosition)
-				{
-					ends[p] = element.target.getLatLng();
-					break;
-				}
-			}
-			lines._layers[l].setLatLngs(ends);
-		} 
+		var ends = []
+		corners.eachLayer(function (corner) {
+			ends.push(corner.getLatLng());
+		});
+		ends[currentMarker] = element.target.getLatLng();
+		line.setLatLngs(ends);
 		break;
 	//Shape selected
 	case 3:
