@@ -11,7 +11,7 @@ var loc = 0;
 var points = [];
 var currentShape = [];
 var corners, lines;
-var markers, polygons;
+var markers, polygons, circles;
 var currentSelected;
 var currentMarkerPosition;
 var currentLines = [];
@@ -42,6 +42,7 @@ var initMap = function()
 	lines = L.layerGroup();
 	markers = L.layerGroup();
 	polygons = L.layerGroup();
+	circles = L.layerGroup();
 
 	// map.setView(new L.LatLng(52.9912, -1.1579), 16);
 	map.addLayer(osm);
@@ -52,6 +53,7 @@ var initMap = function()
 	lines.addTo(map);
 	polygons.addTo(map);
 	markers.addTo(map);
+	circles.addTo(map);
 }
 
 var addPoint = function(location) {
@@ -85,6 +87,18 @@ var drawLine = function(point1, point2) {
 	lines.addLayer(line);
 }
 
+var drawCircle = function(point, origin) {
+	addPoint(point);
+	var distance = point.distanceTo(origin);
+	var circle = L.circle(origin, distance,
+	{
+		fillColor: 'yellow'
+	});
+	circle.on('click', selectCircle);
+	circles.addLayer(circle);
+	currentSelected = circle._leaflet_id;
+}
+
 var mapClick = function(e) {
 	switch(mouseState){
 	case 0:
@@ -101,9 +115,11 @@ var mapClick = function(e) {
 		addPoint(e.latlng);
 		break;
 	case 3:
-		//Deselecting the current selected shape
+		//Deselecting the current selected polygon
 		corners.clearLayers();
 		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		currentSelected = undefined;
+		mouseState = 0;
 		break;
 	//Adding a point
 	case 4:
@@ -114,10 +130,20 @@ var mapClick = function(e) {
 		break;
 	//Defining the start point of a circle
 	case 5:
+		addPoint(e.latlng);
 		mouseState = 6;
 		break;
 	//Defining the radius of the circle 
 	case 6:
+		drawCircle(e.latlng, currentShape[0]);
+		mouseState = 7;
+		break;
+	//Deselecting current selected circle
+	case 7:
+		corners.clearLayers();
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		currentSelected = undefined;
+		mouseState = 0;
 		break;
 	default:
 		break;
@@ -133,36 +159,69 @@ var cutPoint = function(e) {
 		mouseState = 0;
 		break;
 	case 2:
-		mouseState = 0;
-		var polygon = L.polygon(currentShape);
+		var polygon = L.polygon(currentShape,
+		{
+			fillColor: 'yellow'
+		});
 		shapes.push(currentShape);
 		currentShape = [];
-		corners.clearLayers();
 		lines.clearLayers();
 		polygon.on('click', selectPolygon);
 		polygon.addTo(polygons);
+		currentSelected = polygon._leaflet_id;
+		mouseState = 3;
 		break;
 	default:
 		break;
 	}
 }
 
-var drawPolygon = function() {
+var definePolygon = function() {
+	if(currentShape !== [])
+		currentShape = [];
+	if(currentSelected !== undefined)
+	{
+		corners.clearLayers();
+		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		currentSelected = undefined;
+	}
 	mouseState = 1;
 }
 
-var drawPoint = function() {
+var definePoint = function() {
+	if(currentShape !== [])
+		currentShape = [];
+	if(currentSelected !== undefined)
+	{
+		corners.clearLayers();
+		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		currentSelected = undefined;
+	}
 	mouseState = 4;
 }
 
-var drawCircle = function() {
+var defineCircle = function() {
+	if(currentShape !== [])
+		currentShape = [];
+	if(currentSelected !== undefined)
+	{
+		corners.clearLayers();
+		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		currentSelected = undefined;
+	}
 	mouseState = 5;
 }
 
 var selectPolygon = function(polygon) {
 	//reset if previous shape had been selected
 	if(currentSelected !== undefined)
+	{
 		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+	}
 	corners.clearLayers();
 	polygon.target.setStyle({fillColor: 'yellow'});
 	//Create a marker at each one of the polygon's points
@@ -179,11 +238,29 @@ var selectPolygon = function(polygon) {
 	mouseState = 3;
 }
 
+var selectCircle = function(circle) {
+	//reset if previous shape had been selected
+	if(currentSelected !== undefined)
+	{
+		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+	}
+	corners.clearLayers();
+	circle.target.setStyle({fillColor: 'yellow'});
+	//Create a marker at the center of the circle
+	var position = circle.target._latlng;
+	var marker = new L.marker(position, {draggable: true});
+	marker.on('dragstart', recordPosition);
+	marker.on('dragend', setPosition);
+	corners.addLayer(marker);
+	currentSelected = circle.target._leaflet_id;
+	mouseState = 7;
+}
+
 var recordPosition = function(element) {
 	switch(mouseState)
 	{
 	case 2:
-		break;
 	case 3:
 		currentMarkerPosition = element.target.getLatLng();
 		break;
@@ -197,7 +274,21 @@ var setPosition = function(element) {
 	{	
 	//Drawing lines mode
 	case 2:
-		//Get attached to 
+		//Get lines attached to that point
+		var l, p, ends;
+		for(l in lines._layers)
+		{
+			ends = lines._layers[l].getLatLngs();
+			for(p = 0; p < ends.length; p++)
+			{
+				if(ends[p] == currentMarkerPosition)
+				{
+					ends[p] = element.target.getLatLng();
+					break;
+				}
+			}
+			lines._layers[l].setLatLngs(ends);
+		} 
 		break;
 	//Shape selected
 	case 3:
@@ -215,7 +306,29 @@ var setPosition = function(element) {
 		}
 		polygon.setLatLngs(points);
 		break;
+	case 7:
+		var circle = circles.getLayer(currentSelected);
+		if(corners.getLayers()[0]._leaflet_id == element.target._leaflet_id)
+		{
+			circle.setLatLng(element.target.getLatLng());
+			var newCentre = element.target.getLatLng();
+			var distance = circle.getRadius();
+			var newLatLng = new L.latLng(newCentre.lat + getdistCoord(distance), newCentre.lng);
+			corners.getLayers()[1].setLatLng(newLatLng);
+		}
+		else
+		{
+			var centre = corners.getLayers()[0];
+			var distance = element.target.getLatLng().distanceTo(centre.getLatLng());
+			circle.setRadius(distance);
+		}
+		break;
 	default:
 		break;
 	}
+}
+
+var getdistCoord = function (distance){
+	const RAD = 0.000008998719243599958;
+	return distance * RAD;
 }

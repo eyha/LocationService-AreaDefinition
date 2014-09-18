@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<link rel="stylesheet" href="../Leaflet/leaflet.css"></link>
+		<link rel="stylesheet" href="Leaflet/leaflet.css"></link>
 		<link rel="stylesheet" href="mapAPI.css"></link>
-		<script type="text/javascript" src="../Leaflet/leaflet.js"></script>
-		<script type="text/javascript" src="../Leaflet/leaflet-pip.min.js"></script>
+		<script type="text/javascript" src="Leaflet/leaflet.js"></script>
+		<script type="text/javascript" src="Leaflet/leaflet-pip.min.js"></script>
+		<script type="text/javascript" src="Leaflet/leaflet-geometry-util.js"></script>
 		<script type="text/javascript" src="mapAPI.js"></script>
 		<title>Location Services</title>
 	</head>
@@ -13,7 +14,8 @@
 			<h1>Location service</h1>
 		</div>
 		<div id="map" name="map"></div>
-		<button onclick="drawPolygon()">Draw a shape</button>
-		<button onclick="drawPoint()">Draw a point</button>
+		<button onclick="definePolygon()">Draw a shape</button>
+		<button onclick="definePoint()">Draw a point</button>
+		<button onclick="defineCircle()">Draw a circle</button>
 	</body>
 </html> 
