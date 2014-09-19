@@ -71,8 +71,6 @@ var initMap = function()
 
 	for(var s = 0; s < shapes.length; s++)
 	{
-		console.log("loop "+s);
-		console.log("shape[s] length is "+shapes[s].length);
 		switch(shapes[s].length)
 		{
 			case 1:
@@ -284,8 +282,12 @@ var selectPolygon = function(polygon) {
 	//reset if previous shape had been selected
 	if(currentSelected !== undefined)
 	{
-		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
-		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		polygons.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		circles.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
 	}
 	corners.clearLayers();
 	polygon.target.setStyle({fillColor: 'yellow'});
@@ -307,8 +309,14 @@ var selectCircle = function(circle) {
 	//reset if previous shape had been selected
 	if(currentSelected !== undefined)
 	{
-		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
-		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		corners.clearLayers();
+		polygons.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		circles.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		currentSelected = undefined;
 	}
 	corners.clearLayers();
 	circle.target.setStyle({fillColor: 'yellow'});
@@ -318,6 +326,16 @@ var selectCircle = function(circle) {
 	marker.on('dragstart', recordPosition);
 	marker.on('dragend', setPosition);
 	corners.addLayer(marker);
+
+	//create a marker at the top of the circle
+	var newCentre = marker.getLatLng();
+	var distance = circle.target.getRadius();
+	var newLatLng = new L.latLng(newCentre.lat + getdistCoord(distance), newCentre.lng);
+	marker = new L.marker(newLatLng, {draggable: true});
+	marker.on('dragstart', recordPosition);
+	marker.on('dragend', setPosition);
+	corners.addLayer(marker);
+
 	currentSelected = circle.target._leaflet_id;
 	mouseState = 7;
 }
