@@ -167,6 +167,18 @@ var cutPoint = function(e) {
 		map.removeLayer(line);
 		polygon.on('click', selectPolygon);
 		polygon.addTo(polygons);
+
+		//redraw the markers because their positions will be slightly out
+		corners.clearLayers();
+		var vertices = polygon.getLatLngs();
+		for(var v = 0; v < vertices.length; v++)
+		{
+			var vertice = new L.marker(vertices[v], {draggable: true});
+			vertice.on('dragstart', recordPosition);
+			vertice.on('dragend', setPosition);
+			corners.addLayer(vertice);
+		}
+
 		currentSelected = polygon._leaflet_id;
 		mouseState = 3;
 		break;
@@ -181,8 +193,12 @@ var definePolygon = function() {
 	if(currentSelected !== undefined)
 	{
 		corners.clearLayers();
-		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
-		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		polygons.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		circles.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
 		currentSelected = undefined;
 	}
 	mouseState = 1;
@@ -194,8 +210,12 @@ var definePoint = function() {
 	if(currentSelected !== undefined)
 	{
 		corners.clearLayers();
-		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
-		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		polygons.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		circles.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
 		currentSelected = undefined;
 	}
 	mouseState = 4;
@@ -207,8 +227,12 @@ var defineCircle = function() {
 	if(currentSelected !== undefined)
 	{
 		corners.clearLayers();
-		polygons.getLayer(currentSelected).setStyle({fillColor: 'blue'});
-		circles.getLayer(currentSelected).setStyle({fillColor: 'blue'});
+		polygons.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
+		circles.eachLayer(function (shape) {
+			shape.setStyle({fillColor: 'blue'});
+		});
 		currentSelected = undefined;
 	}
 	mouseState = 5;
