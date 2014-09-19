@@ -1,20 +1,36 @@
-var map, ajaxRequest, plotlist, mouseState;
-var plotlayers = [];
+var map, mouseState;
+//defines the current location
+var loc = 0;
 //Defines the bounds for the different locations
 var areas = [
 	[52.987, -1.166, 52.994, -1.149],
 	[52.940, -1.189, 52.947, -1.180]
 ];
-//saves the locations of the shapes into the database
-var shapes = [[]];
-var loc = 0;
-var points = [];
+//saves/loads shape locations to/from the database
+var shapes = 
+[
+	[
+		[52.99140795465868, -1.1580276489257812],
+		[52.99089130680322, -1.1563968658447266],
+		[52.98949632672248, -1.1584138870239258],
+		[52.990219655351474, -1.1606025695800781]
+	],
+	[
+		[52.99042976277312, -1.154637336730957],
+		[52.98921215858968, -1.1554527282714844]
+	],
+	[
+		[52.9885404810256, -1.1588001251220703]
+	]
+];
+//used during the process of creating shapes
 var currentShape = [];
 var corners;
 var line;
+//holds the areas that have been defined
 var markers, polygons, circles;
-var currentSelected;
-var currentMarkerPosition, currentMarker;
+//used in editing shapes
+var currentSelected, currentMarkerPosition, currentMarker;
 
 //Initiates the map
 var initMap = function() 
@@ -52,15 +68,39 @@ var initMap = function()
 	polygons.addTo(map);
 	markers.addTo(map);
 	circles.addTo(map);
+
+	for(var s = 0; s < shapes.length; s++)
+	{
+		console.log("loop "+s);
+		console.log("shape[s] length is "+shapes[s].length);
+		switch(shapes[s].length)
+		{
+			case 1:
+				mouseState = 4;
+				addPoint(shapes[s][0]);
+				currentShape = [];
+				mouseState = 0;
+				break;
+			case 2:
+				var origin = new L.latLng(shapes[s][0]);
+				var point = new L.latLng(shapes[s][1]);
+				drawCircle(point, origin);
+				currentShape = [];
+				break;
+			default:
+				cutPoint(shapes[s]);
+				break;
+		}
+	}
 }
 
 var addPoint = function(location) {
 	var point = new L.latLng(location.lat, location.lng);
 	var marker = new L.marker(location, {draggable: true});
-	var newArr = [];
 
 	//functions for markers
-	marker.on('click', cutPoint);
+	if(mouseState == 2)
+		marker.on('click', cutPoint);
 	marker.on('dragstart', recordPosition);
 	marker.on('dragend', setPosition);
 
@@ -68,7 +108,6 @@ var addPoint = function(location) {
 		corners.addLayer(marker);
 	else
 		markers.addLayer(marker);
-	points.push(point);
 	//add point to array of polygon's current corners
 	currentShape.push(point);
 }
@@ -87,15 +126,16 @@ var drawLine = function() {
 }
 
 var drawCircle = function(point, origin) {
-	addPoint(point);
 	var distance = point.distanceTo(origin);
-	var circle = L.circle(origin, distance,
-	{
-		fillColor: 'yellow'
-	});
+	var circle = L.circle(origin, distance);
 	circle.on('click', selectCircle);
 	circles.addLayer(circle);
-	currentSelected = circle._leaflet_id;
+	if(mouseState == 6)
+	{
+		addPoint(point);
+		circle.setStyle({fillColor: 'yellow'});
+		currentSelected = circle._leaflet_id;
+	}
 }
 
 var mapClick = function(e) {
@@ -123,7 +163,6 @@ var mapClick = function(e) {
 	//Adding a point
 	case 4:
 		addPoint(e.latlng);
-		shapes.push(currentShape);
 		currentShape = [];
 		mouseState = 0;
 		break;
@@ -153,6 +192,10 @@ var mapClick = function(e) {
 var cutPoint = function(e) {
 	switch(mouseState){
 	case 0:
+		var polygon = L.polygon(e)
+		currentShape = [];
+		polygon.on('click', selectPolygon);
+		polygon.addTo(polygons);
 		break;
 	case 1:
 		mouseState = 0;
@@ -162,7 +205,6 @@ var cutPoint = function(e) {
 		{
 			fillColor: 'yellow'
 		});
-		shapes.push(currentShape);
 		currentShape = [];
 		map.removeLayer(line);
 		polygon.on('click', selectPolygon);
