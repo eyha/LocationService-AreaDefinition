@@ -69,39 +69,23 @@ var initMap = function()
 	markers.addTo(map);
 	circles.addTo(map);
 
-	for(var s = 0; s < shapes.length; s++)
-	{
-		switch(shapes[s].length)
-		{
-			case 1:
-				mouseState = 4;
-				addPoint(shapes[s][0]);
-				currentShape = [];
-				mouseState = 0;
-				break;
-			case 2:
-				var origin = new L.latLng(shapes[s][0]);
-				var point = new L.latLng(shapes[s][1]);
-				drawCircle(point, origin);
-				currentShape = [];
-				break;
-			default:
-				cutPoint(shapes[s]);
-				break;
-		}
-	}
+	//Creates shapes based on loaded data
+	parseLoadData();
 }
 
+//Creates a marker at the point, either to represent part of a polygon/circle or as a point of its own
 var addPoint = function(location) {
 	var point = new L.latLng(location.lat, location.lng);
 	var marker = new L.marker(location, {draggable: true});
 
 	//functions for markers
-	if(mouseState == 2)
+	//Only add the cutPoint function when you are defining a polygon
+	if(mouseState == 2 || mouseState == 1)
 		marker.on('click', cutPoint);
 	marker.on('dragstart', recordPosition);
 	marker.on('dragend', setPosition);
 
+	//If part of a polygon or circle, add it to the corners layerGroup instead
 	if(mouseState !== 4)
 		corners.addLayer(marker);
 	else
@@ -110,7 +94,9 @@ var addPoint = function(location) {
 	currentShape.push(point);
 }
 
+//Draws a line between all of the current points in the current shape being defined
 var drawLine = function() {
+	//removes any existing line
 	if(line !== undefined)
 		map.removeLayer(line);
 	line = new L.Polyline(currentShape, 
@@ -123,11 +109,14 @@ var drawLine = function() {
 	line.addTo(map);
 }
 
+//draws a circle from the origin, with radius equal to the distance between the origin and the other given point
 var drawCircle = function(point, origin) {
 	var distance = point.distanceTo(origin);
 	var circle = L.circle(origin, distance);
+	//Gives the circle a function to select it
 	circle.on('click', selectCircle);
 	circles.addLayer(circle);
+	//If the circle is being created by the user, select it
 	if(mouseState == 6)
 	{
 		addPoint(point);
@@ -140,17 +129,18 @@ var mapClick = function(e) {
 	switch(mouseState){
 	case 0:
 		break;
-	//Adding a point
+	//Point adding mode
 	case 1:
 		addPoint(e.latlng);
 		mouseState = 2;
 		break;
-	//In shape polygon defining mode.
+	//In polygon defining mode.
 	case 2:
-		//Drawing a line between point selected and previous one
 		addPoint(e.latlng);
+		//Drawing a line between points selected
 		drawLine();
 		break;
+	//In polygon selected mode
 	case 3:
 		//Deselecting the current selected polygon
 		corners.clearLayers();
@@ -158,18 +148,18 @@ var mapClick = function(e) {
 		currentSelected = undefined;
 		mouseState = 0;
 		break;
-	//Adding a point
+	//Marker adding mode
 	case 4:
 		addPoint(e.latlng);
 		currentShape = [];
 		mouseState = 0;
 		break;
-	//Defining the start point of a circle
+	//Defining the start point of a circle mode
 	case 5:
 		addPoint(e.latlng);
 		mouseState = 6;
 		break;
-	//Defining the radius of the circle 
+	//Defining the radius of the circle mode
 	case 6:
 		drawCircle(e.latlng, currentShape[0]);
 		mouseState = 7;
@@ -187,17 +177,20 @@ var mapClick = function(e) {
 	return;
 }
 
+//Creates a polygon based on the current points added
 var cutPoint = function(e) {
 	switch(mouseState){
+	//If the polygon was loaded from file
 	case 0:
 		var polygon = L.polygon(e)
 		currentShape = [];
 		polygon.on('click', selectPolygon);
-		polygon.addTo(polygons);
+		polygons.addLayer(polygon);
 		break;
 	case 1:
 		mouseState = 0;
 		break;
+	//During shape defining mode when a previous point is clicked
 	case 2:
 		var polygon = L.polygon(currentShape,
 		{
@@ -227,43 +220,33 @@ var cutPoint = function(e) {
 	}
 }
 
+//Called when the draw shape button is clicked
 var definePolygon = function() {
+	//Empties the current shape if it is not finished
 	if(currentShape !== [])
 		currentShape = [];
-	if(currentSelected !== undefined)
-	{
-		corners.clearLayers();
-		polygons.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		circles.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		currentSelected = undefined;
-	}
+	deselect();
 	mouseState = 1;
 }
 
+//Called when the draw point button is clicked
 var definePoint = function() {
 	if(currentShape !== [])
 		currentShape = [];
-	if(currentSelected !== undefined)
-	{
-		corners.clearLayers();
-		polygons.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		circles.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		currentSelected = undefined;
-	}
+	deselect();
 	mouseState = 4;
 }
 
+//Called when the draw circle button is clicked
 var defineCircle = function() {
 	if(currentShape !== [])
 		currentShape = [];
+	deselect();
+	mouseState = 5;
+}
+
+//Deselects any currently selected shapes
+var deselect = function() {
 	if(currentSelected !== undefined)
 	{
 		corners.clearLayers();
@@ -275,21 +258,12 @@ var defineCircle = function() {
 		});
 		currentSelected = undefined;
 	}
-	mouseState = 5;
 }
 
+//Called whenever a polygon is clicked
 var selectPolygon = function(polygon) {
 	//reset if previous shape had been selected
-	if(currentSelected !== undefined)
-	{
-		polygons.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		circles.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-	}
-	corners.clearLayers();
+	deselect();
 	polygon.target.setStyle({fillColor: 'yellow'});
 	//Create a marker at each one of the polygon's points
 	var p, marker;
@@ -305,20 +279,10 @@ var selectPolygon = function(polygon) {
 	mouseState = 3;
 }
 
+//Called whenever a circle is clicked
 var selectCircle = function(circle) {
 	//reset if previous shape had been selected
-	if(currentSelected !== undefined)
-	{
-		corners.clearLayers();
-		polygons.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		circles.eachLayer(function (shape) {
-			shape.setStyle({fillColor: 'blue'});
-		});
-		currentSelected = undefined;
-	}
-	corners.clearLayers();
+	deselect();
 	circle.target.setStyle({fillColor: 'yellow'});
 	//Create a marker at the center of the circle
 	var position = circle.target._latlng;
@@ -327,7 +291,7 @@ var selectCircle = function(circle) {
 	marker.on('dragend', setPosition);
 	corners.addLayer(marker);
 
-	//create a marker at the top of the circle
+	//create a marker at the top of the circle to modify radius size
 	var newCentre = marker.getLatLng();
 	var distance = circle.target.getRadius();
 	var newLatLng = new L.latLng(newCentre.lat + getdistCoord(distance), newCentre.lng);
@@ -340,9 +304,11 @@ var selectCircle = function(circle) {
 	mouseState = 7;
 }
 
+//called whenever a marker starts to be dragged
 var recordPosition = function(element) {
 	switch(mouseState)
 	{
+	//Remembers which marker in the line was moved to remember how to redraw the line
 	case 2:
 		var m;
 		var marks = corners.getLayers();
@@ -355,6 +321,7 @@ var recordPosition = function(element) {
 			}
 		}
 		break;
+	//Remembers the old position of the moved marker to determine which latLng to change
 	case 3:
 		currentMarkerPosition = element.target.getLatLng();
 		break;
@@ -368,7 +335,7 @@ var setPosition = function(element) {
 	{	
 	//Drawing lines mode
 	case 2:
-		//Get lines attached to that point
+		//Replaces the part of the polyline that has been moved and changes its value
 		var ends = []
 		corners.eachLayer(function (corner) {
 			ends.push(corner.getLatLng());
@@ -378,7 +345,7 @@ var setPosition = function(element) {
 		break;
 	//Shape selected
 	case 3:
-		//Redraw the shape to match it's new coordinates
+		//Redraws the shape to match it's new coordinates
 		var polygon = polygons.getLayer(currentSelected);
 		var points = polygon.getLatLngs();
 		var p;
@@ -394,16 +361,20 @@ var setPosition = function(element) {
 		break;
 	case 7:
 		var circle = circles.getLayer(currentSelected);
+		//If the moved marker represented the centre of the circle, move the entire circle
 		if(corners.getLayers()[0]._leaflet_id == element.target._leaflet_id)
 		{
 			circle.setLatLng(element.target.getLatLng());
+			//find the new centre and reposition the resizing marker above it
 			var newCentre = element.target.getLatLng();
 			var distance = circle.getRadius();
 			var newLatLng = new L.latLng(newCentre.lat + getdistCoord(distance), newCentre.lng);
 			corners.getLayers()[1].setLatLng(newLatLng);
 		}
+		//If the resizing marker was moved
 		else
 		{
+			//calculate the distance beween the centre and its new position and use that to set the radius
 			var centre = corners.getLayers()[0];
 			var distance = element.target.getLatLng().distanceTo(centre.getLatLng());
 			circle.setRadius(distance);
@@ -414,7 +385,89 @@ var setPosition = function(element) {
 	}
 }
 
+//Used to convert between meters and pixels for the circles
 var getdistCoord = function (distance){
 	const RAD = 0.000008998719243599958;
 	return distance * RAD;
+}
+
+//Saves the data to the database - currently unfinished
+var saveData = function () {
+	//Creates GeoJSONs for each one of the important layerGroups
+	var markerJsons = [];
+	markers.eachLayer(function (feature) {
+		markerJsons.push(feature.toGeoJSON());
+	});
+	//Circle GeoJSON does not store the radius by default - need to fix this
+	var circleJsons = [];
+	circles.eachLayer(function (feature) {
+		circleJsons.push(feature.toGeoJSON());
+	});
+	var polygonJsons = [];
+	polygons.eachLayer(function (feature) {
+		polygonJsons.push(feature.toGeoJSON());
+	});
+	//Calls jQuery's AJAX to send the data to the server
+	$.ajax({
+		url: 'localhost',
+		type: 'post',
+		data: JSON.stringify(markerJson),
+		contentType: 'application/json',
+		dataType: 'json',
+		success: function(data, status)
+		{
+			//Should return the user's randomly generated id on success if they don't already have one
+		}
+	});
+}
+
+//Parses loaded data into a shapes on the map. Currently uses shapes, but will use GeoJSONs loaded from the database in future
+var parseLoadData = function() {
+/*var parseLoadData = function(type, jSON) {
+	var parsedData = jQuery.parseJSON(jSON);
+	if(type == 'marker')
+	{
+		var marker = L.geoJson(parsedData, {draggable: true});
+		marker.on('dragstart', recordPosition);
+		marker.on('dragend', setPosition);
+		markers.addLayer(marker);
+	}
+	else if(type == 'circle')
+	{
+		var circle = L.geoJson(parsedData);
+		circle.on('click', selectCircle);
+		circles.addLayer(circle);
+	}
+	else if(type == 'polygon')
+	{
+		var polygon = L.geoJson(parsedData);
+		polygon.on('click', selectPolygon);
+		polygons.addLayer(polygon);
+	}*/
+	
+
+	for(var s = 0; s < shapes.length; s++)
+	{
+		switch(shapes[s].length)
+		{
+			//If one point, it is a marker
+			case 1:
+				mouseState = 4;
+				addPoint(shapes[s][0]);
+				currentShape = [];
+				mouseState = 0;
+				break;
+			//Two is a circle
+			case 2:
+				var origin = new L.latLng(shapes[s][0]);
+				var point = new L.latLng(shapes[s][1]);
+				drawCircle(point, origin);
+				currentShape = [];
+				break;
+			//Anything else is a polygon
+			default:
+				cutPoint(shapes[s]);
+				break;
+		}
+	}
 }
